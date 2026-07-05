@@ -15,7 +15,28 @@ const app = express();
 
 connectDB();
 
-app.use(cors({ origin: process.env.CLIENT_URL || '*', credentials: true }));
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
+  'https://smart-complaint-mgmt.netlify.app',
+  'http://localhost:5173',
+]
+  .filter(Boolean)
+  .map((origin) => origin.trim().replace(/\/$/, ''));
+
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked origin: ${origin}`));
+  },
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -46,3 +67,4 @@ app.listen(PORT, () => {
   runEscalationCheck();
   setInterval(runEscalationCheck, 60 * 60 * 1000);
 });
+
