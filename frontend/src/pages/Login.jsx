@@ -87,7 +87,8 @@ export default function Login() {
       await login(email.trim().toLowerCase(), password, authRole.role);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Invalid email or password');
+      const message = err.response?.data?.message || (!err.response ? 'Unable to reach the backend. Check the API URL or allowed frontend origin.' : err.message);
+      setError(message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
@@ -162,4 +163,5 @@ export default function Login() {
     </main>
   );
 }
+
 

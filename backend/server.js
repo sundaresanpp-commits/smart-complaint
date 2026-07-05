@@ -20,6 +20,7 @@ const allowedOrigins = [
   ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',') : []),
   'https://smart-complaint-mgmt.netlify.app',
   'http://localhost:5173',
+  'http://127.0.0.1:5173',
 ]
   .filter(Boolean)
   .map((origin) => origin.trim().replace(/\/$/, ''));
@@ -57,6 +58,9 @@ app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
 // Global error handler (e.g. multer file errors)
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  if (err.message?.startsWith('CORS blocked origin:')) {
+    return res.status(403).json({ message: err.message });
+  }
   res.status(err.status || 500).json({ message: err.message || 'Server error' });
 });
 
@@ -67,4 +71,5 @@ app.listen(PORT, () => {
   runEscalationCheck();
   setInterval(runEscalationCheck, 60 * 60 * 1000);
 });
+
 

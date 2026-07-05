@@ -94,9 +94,9 @@ Frontend runs on `http://localhost:5173`.
 ### 3. Log in
 
 After seeding, use:
-- **Admin**: admin@demo.com / password123
-- **Staff**: staff@demo.com / password123
-- **Student**: student@demo.com / password123
+- **Admin**: admin@demo.com / Password@123
+- **Staff**: staff@demo.com / Password@123
+- **Student**: student@demo.com / Password@123
 
 Or register a new account (registers as a regular user — staff/admin accounts are created by an
 admin from the "Manage Staff" page).
@@ -159,3 +159,4 @@ frontend/
 - **Images not showing** — confirm the backend is running and serving `/uploads` statically; check
   the browser console for a blocked/mixed-content request if deployed over HTTPS with an HTTP
   backend URL.
+
