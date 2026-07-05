@@ -1,0 +1,295 @@
+/* ============================================================
+   Design tokens — "civic work-order" identity.
+   Complaints are treated visually like municipal work-order
+   tickets: monospace ticket numbers, a priority-colored edge,
+   and a stamped badge for resolved/escalated states.
+   ============================================================ */
+:root {
+  --ink: #1b2430;
+  --ink-soft: #3a4657;
+  --paper: #f7f6f3;
+  --paper-raised: #ffffff;
+  --line: #dcd8d0;
+  --slate: #8a94a6;
+
+  --amber: #f2a93b;
+  --amber-soft: #fdf1de;
+  --teal: #2e8b77;
+  --teal-soft: #e3f1ee;
+  --rust: #c4462b;
+  --rust-soft: #fbe8e3;
+  --blue: #3b6ea5;
+  --blue-soft: #e7eff7;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius: 8px;
+  --shadow-card: 0 1px 2px rgba(27, 36, 48, 0.06), 0 1px 3px rgba(27, 36, 48, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+}
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+button {
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  font-family: var(--font-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+/* Layout shell */
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 32px 60px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 14px;
+  transition: transform 0.08s ease, box-shadow 0.15s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn-primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+.btn-primary:hover {
+  background: var(--ink-soft);
+}
+.btn-outline {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+.btn-outline:hover {
+  border-color: var(--ink);
+}
+.btn-danger {
+  background: var(--rust-soft);
+  color: var(--rust);
+  border-color: var(--rust);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+/* Cards */
+.card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-card);
+}
+
+/* Form elements */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.field input,
+.field select,
+.field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 14px;
+  background: var(--paper-raised);
+  color: var(--ink);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--blue);
+}
+.field-error {
+  color: var(--rust);
+  font-size: 12px;
+}
+
+/* Ticket / complaint card — the signature element */
+.ticket {
+  position: relative;
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--slate);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-card);
+}
+.ticket.priority-Low { border-left-color: var(--slate); }
+.ticket.priority-Medium { border-left-color: var(--blue); }
+.ticket.priority-High { border-left-color: var(--amber); }
+.ticket.priority-Critical { border-left-color: var(--rust); }
+
+.ticket-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--slate);
+  letter-spacing: 0.02em;
+}
+
+.ticket-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ticket-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+/* Stamp badge — used for Resolved / Escalated / Duplicate states */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: rotate(-2deg);
+}
+.stamp-resolved { color: var(--teal); }
+.stamp-escalated { color: var(--rust); }
+.stamp-duplicate { color: var(--slate); }
+
+/* Status pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pill-Submitted { background: var(--blue-soft); color: var(--blue); }
+.pill-Assigned { background: var(--amber-soft); color: #a06b1e; }
+.pill-InProgress, .pill-\31 n\20 Progress { background: var(--amber-soft); color: #a06b1e; }
+.pill-Resolved { background: var(--teal-soft); color: var(--teal); }
+.pill-Closed { background: #ececec; color: var(--slate); }
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+.priority-badge.Low { background: #ececec; color: var(--slate); }
+.priority-badge.Medium { background: var(--blue-soft); color: var(--blue); }
+.priority-badge.High { background: var(--amber-soft); color: #a06b1e; }
+.priority-badge.Critical { background: var(--rust-soft); color: var(--rust); }
+
+/* Utility */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.text-slate { color: var(--slate); }
+.text-sm { font-size: 13px; }
+.mt-0 { margin-top: 0; }
+.mb-16 { margin-bottom: 16px; }
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 900px) {
+  .grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-cols-2 { grid-template-columns: 1fr; }
+  .app-shell { flex-direction: column; }
+  .main-content { padding: 20px; }
+}
