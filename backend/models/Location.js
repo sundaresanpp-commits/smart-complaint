@@ -10,6 +10,6 @@ const locationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-locationSchema.index({ name: 1 }, { unique: true });
-
 module.exports = mongoose.model('Location', locationSchema);
+
+
