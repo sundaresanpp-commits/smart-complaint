@@ -102,14 +102,14 @@ async function seed() {
   const admin = await User.create({
     name: 'Admin User',
     email: 'admin@demo.com',
-    password: 'password123',
+    password: 'Password@123',
     role: 'admin',
   });
 
   const staff = await User.create({
     name: 'Staff Member',
     email: 'staff@demo.com',
-    password: 'password123',
+    password: 'Password@123',
     role: 'staff',
     department: 'Infrastructure',
   });
@@ -117,7 +117,7 @@ async function seed() {
   const student = await User.create({
     name: 'Demo Student',
     email: 'student@demo.com',
-    password: 'password123',
+    password: 'Password@123',
     role: 'user',
   });
 
@@ -135,10 +135,11 @@ async function seed() {
 
   console.log('Seed complete!');
   console.log('Login with:');
-  console.log('  Admin:   admin@demo.com / password123');
-  console.log('  Staff:   staff@demo.com / password123');
-  console.log('  Student: student@demo.com / password123');
+  console.log('  Admin:   admin@demo.com / Password@123');
+  console.log('  Staff:   staff@demo.com / Password@123');
+  console.log('  Student: student@demo.com / Password@123');
   mongoose.connection.close();
 }
 
 seed();
+

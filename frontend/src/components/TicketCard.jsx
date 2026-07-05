@@ -2,24 +2,28 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { StatusPill, PriorityBadge, Stamp } from './Badges';
 
-export default function TicketCard({ complaint }) {
-  const shortId = complaint._id.slice(-6).toUpperCase();
-  const date = new Date(complaint.createdAt).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-  });
+export default function TicketCard({ complaint = {} }) {
+  const id = complaint._id || '';
+  const shortId = id ? id.slice(-6).toUpperCase() : 'NEW';
+  const date = complaint.createdAt
+    ? new Date(complaint.createdAt).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+      })
+    : 'No date';
+  const detailPath = id ? `/complaints/${id}` : '/dashboard';
 
   return (
-    <Link to={`/complaints/${complaint._id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-      <div className={`ticket priority-${complaint.priority}`}>
+    <Link to={detailPath} style={{ textDecoration: 'none', color: 'inherit' }}>
+      <div className={`ticket priority-${complaint.priority || 'Low'}`}>
         <div className="flex justify-between items-center">
           <span className="ticket-id">TICKET #{shortId}</span>
           <span className="text-sm text-slate">{date}</span>
         </div>
-        <div className="ticket-title">{complaint.title}</div>
+        <div className="ticket-title">{complaint.title || 'Untitled complaint'}</div>
         <div className="ticket-meta">
-          <StatusPill status={complaint.status} />
-          <PriorityBadge priority={complaint.priority} />
+          <StatusPill status={complaint.status || 'Submitted'} />
+          <PriorityBadge priority={complaint.priority || 'Low'} />
           <span
             style={{
               background: 'var(--paper)',
@@ -30,7 +34,7 @@ export default function TicketCard({ complaint }) {
               fontSize: 12,
             }}
           >
-            {complaint.category}
+            {complaint.category || 'General'}
           </span>
           {(complaint.location?.name || complaint.locationName) && (
             <span

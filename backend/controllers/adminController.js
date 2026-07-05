@@ -4,6 +4,7 @@ const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 const { summarizeComplaints } = require('../utils/aiService');
 const { createNotification } = require('../utils/notify');
+const { PASSWORD_REQUIREMENTS, isStrongPassword, isValidEmail, normalizeEmail } = require('../utils/validation');
 
 // @route GET /api/admin/analytics
 exports.getAnalytics = async (req, res) => {
@@ -104,13 +105,25 @@ exports.getUsers = async (req, res) => {
 exports.createStaffUser = async (req, res) => {
   try {
     const { name, email, password, role, department } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!name?.trim() || !normalizedEmail || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required' });
+    }
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_REQUIREMENTS });
+    }
     if (!['staff', 'admin'].includes(role)) {
       return res.status(400).json({ message: 'Role must be staff or admin' });
     }
-    const existing = await User.findOne({ email: email.toLowerCase() });
+
+    const existing = await User.findOne({ email: normalizedEmail });
     if (existing) return res.status(400).json({ message: 'Email already registered' });
 
-    const user = await User.create({ name, email, password, role, department: department || null });
+    const user = await User.create({ name: name.trim(), email: normalizedEmail, password, role, department: department || null });
     res.status(201).json({ user: user.toSafeObject() });
   } catch (err) {
     res.status(500).json({ message: 'Failed to create user', error: err.message });
@@ -241,3 +254,4 @@ exports.exportExcel = async (req, res) => {
     res.status(500).json({ message: 'Failed to export Excel', error: err.message });
   }
 };
+

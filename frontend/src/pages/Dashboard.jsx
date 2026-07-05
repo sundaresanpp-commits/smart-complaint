@@ -18,40 +18,97 @@ function StatCard({ label, value, accent }) {
   );
 }
 
+function DashboardError({ children }) {
+  if (!children) return null;
+
+  return (
+    <div className="card" style={{ padding: 16, marginBottom: 16, borderColor: 'var(--rust)' }}>
+      <p className="field-error" style={{ margin: 0 }}>
+        {children}
+      </p>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [aiSummary, setAiSummary] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const role = user?.role;
+  const firstName = user?.name?.split(' ')[0] || 'there';
 
   useEffect(() => {
-    if (user.role === 'user') {
-      api.get('/complaints/mine').then((res) => setComplaints(res.data.complaints)).finally(() => setLoading(false));
-    } else if (user.role === 'staff') {
-      api
-        .get('/complaints', { params: { assignedToMe: true, limit: 6 } })
-        .then((res) => setComplaints(res.data.complaints))
-        .finally(() => setLoading(false));
-    } else {
-      Promise.all([api.get('/admin/analytics'), api.get('/complaints', { params: { limit: 6 } })])
-        .then(([a, c]) => {
-          setAnalytics(a.data);
-          setComplaints(c.data.complaints);
-        })
-        .finally(() => setLoading(false));
-      api.get('/admin/summary').then((res) => setAiSummary(res.data.summary));
-    }
-  }, [user.role]);
+    let isMounted = true;
 
-  if (user.role === 'user') {
+    const setSafeComplaints = (items) => {
+      if (isMounted) setComplaints(Array.isArray(items) ? items : []);
+    };
+
+    const loadDashboard = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        if (role === 'user') {
+          const res = await api.get('/complaints/mine');
+          setSafeComplaints(res.data?.complaints);
+          return;
+        }
+
+        if (role === 'staff') {
+          const res = await api.get('/complaints', { params: { assignedToMe: true, limit: 6 } });
+          setSafeComplaints(res.data?.complaints);
+          return;
+        }
+
+        const [analyticsRes, complaintsRes] = await Promise.all([
+          api.get('/admin/analytics'),
+          api.get('/complaints', { params: { limit: 6 } }),
+        ]);
+
+        if (isMounted) {
+          setAnalytics(analyticsRes.data || null);
+          setSafeComplaints(complaintsRes.data?.complaints);
+        }
+
+        api
+          .get('/admin/summary')
+          .then((res) => {
+            if (isMounted) setAiSummary(res.data?.summary || '');
+          })
+          .catch(() => {
+            if (isMounted) setAiSummary('');
+          });
+      } catch {
+        if (isMounted) {
+          setError('Unable to load dashboard data. Please make sure the backend is running and your login session is valid.');
+          setSafeComplaints([]);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    if (role) loadDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
+
+  if (role === 'user') {
     const active = complaints.filter((c) => !['Resolved', 'Closed'].includes(c.status));
     const resolved = complaints.filter((c) => ['Resolved', 'Closed'].includes(c.status));
+
     return (
       <Layout>
         <div className="flex justify-between items-center" style={{ marginBottom: 20 }}>
           <div>
-            <h1>Welcome back, {user.name.split(' ')[0]}</h1>
+            <h1>Welcome back, {firstName}</h1>
             <p className="text-slate">Here's what's happening with your complaints.</p>
           </div>
           <Link to="/submit" className="btn btn-primary">
@@ -66,6 +123,7 @@ export default function Dashboard() {
         </div>
 
         <h2 style={{ fontSize: 17, marginBottom: 12 }}>Recent Complaints</h2>
+        <DashboardError>{error}</DashboardError>
         {loading ? (
           <p className="text-slate">Loading...</p>
         ) : complaints.length === 0 ? (
@@ -74,8 +132,8 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-16">
-            {complaints.slice(0, 4).map((c) => (
-              <TicketCard key={c._id} complaint={c} />
+            {complaints.slice(0, 4).map((c, index) => (
+              <TicketCard key={c._id || index} complaint={c} />
             ))}
           </div>
         )}
@@ -83,11 +141,12 @@ export default function Dashboard() {
     );
   }
 
-  if (user.role === 'staff') {
+  if (role === 'staff') {
     return (
       <Layout>
         <h1 style={{ marginBottom: 4 }}>My Queue</h1>
         <p className="text-slate" style={{ marginBottom: 24 }}>Complaints assigned to you.</p>
+        <DashboardError>{error}</DashboardError>
         {loading ? (
           <p className="text-slate">Loading...</p>
         ) : complaints.length === 0 ? (
@@ -96,8 +155,8 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-16">
-            {complaints.map((c) => (
-              <TicketCard key={c._id} complaint={c} />
+            {complaints.map((c, index) => (
+              <TicketCard key={c._id || index} complaint={c} />
             ))}
           </div>
         )}
@@ -105,7 +164,6 @@ export default function Dashboard() {
     );
   }
 
-  // Admin dashboard
   return (
     <Layout>
       <h1 style={{ marginBottom: 4 }}>Admin Overview</h1>
@@ -113,10 +171,10 @@ export default function Dashboard() {
 
       {analytics && (
         <div className="grid grid-cols-4 gap-16" style={{ marginBottom: 24 }}>
-          <StatCard label="Total Complaints" value={analytics.totals.total} />
-          <StatCard label="In Progress" value={analytics.totals.inProgress} accent="var(--amber)" />
-          <StatCard label="Resolved" value={analytics.totals.resolved} accent="var(--teal)" />
-          <StatCard label="Avg Resolution" value={`${analytics.avgResolutionHours}h`} />
+          <StatCard label="Total Complaints" value={analytics.totals?.total || 0} />
+          <StatCard label="In Progress" value={analytics.totals?.inProgress || 0} accent="var(--amber)" />
+          <StatCard label="Resolved" value={analytics.totals?.resolved || 0} accent="var(--teal)" />
+          <StatCard label="Avg Resolution" value={`${analytics.avgResolutionHours || 0}h`} />
         </div>
       )}
 
@@ -132,15 +190,20 @@ export default function Dashboard() {
       <div className="flex justify-between items-center" style={{ marginBottom: 12 }}>
         <h2 style={{ fontSize: 17 }}>Recent Complaints</h2>
         <Link to="/complaints" className="text-sm">
-          View all →
+          View all -&gt;
         </Link>
       </div>
+      <DashboardError>{error}</DashboardError>
       {loading ? (
         <p className="text-slate">Loading...</p>
+      ) : complaints.length === 0 ? (
+        <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+          <p className="text-slate">No recent complaints found.</p>
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-16">
-          {complaints.map((c) => (
-            <TicketCard key={c._id} complaint={c} />
+          {complaints.map((c, index) => (
+            <TicketCard key={c._id || index} complaint={c} />
           ))}
         </div>
       )}

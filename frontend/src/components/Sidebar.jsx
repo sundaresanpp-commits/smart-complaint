@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const iconStyle = { width: 18, height: 18, flexShrink: 0 };
 
@@ -21,10 +22,13 @@ const ICONS = {
   analytics: 'M3 3v18h18 M7 15l4-6 4 3 5-8',
   bell: 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4 M16 17l5-5-5-5 M21 12H9',
+  moon: 'M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z',
+  sun: 'M12 4V2M12 22v-2M4.93 4.93 3.52 3.52M20.48 20.48l-1.41-1.41M4 12H2M22 12h-2M4.93 19.07l-1.41 1.41M20.48 3.52l-1.41 1.41M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
 };
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -54,17 +58,7 @@ export default function Sidebar() {
   const links = user?.role === 'admin' ? adminLinks : user?.role === 'staff' ? staffLinks : userLinks;
 
   return (
-    <aside
-      style={{
-        width: 232,
-        background: 'var(--ink)',
-        color: '#fff',
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '22px 14px',
-        flexShrink: 0,
-      }}
-    >
+    <aside className="sidebar">
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 8px 24px' }}>
         <div
           style={{
@@ -87,54 +81,30 @@ export default function Sidebar() {
 
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1 }}>
         {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 12px',
-              borderRadius: 6,
-              color: isActive ? 'var(--ink)' : 'rgba(255,255,255,0.85)',
-              background: isActive ? 'var(--amber)' : 'transparent',
-              fontWeight: isActive ? 600 : 500,
-              fontSize: 14,
-            })}
-          >
+          <NavLink key={link.to} to={link.to} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
             <Icon path={ICONS[link.icon]} />
             {link.label}
           </NavLink>
         ))}
-        <NavLink
-          to="/notifications"
-          style={({ isActive }) => ({
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '10px 12px',
-            borderRadius: 6,
-            color: isActive ? 'var(--ink)' : 'rgba(255,255,255,0.85)',
-            background: isActive ? 'var(--amber)' : 'transparent',
-            fontWeight: isActive ? 600 : 500,
-            fontSize: 14,
-          })}
-        >
+        <NavLink to="/notifications" className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
           <Icon path={ICONS.bell} />
           Notifications
         </NavLink>
       </nav>
 
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 14, marginTop: 14 }}>
+      <div className="sidebar-footer">
+        <button type="button" onClick={toggleTheme} className="theme-toggle" aria-pressed={isDark}>
+          <span className="theme-toggle-icon">
+            <Icon path={isDark ? ICONS.sun : ICONS.moon} />
+          </span>
+          <span>{isDark ? 'Light theme' : 'Dark theme'}</span>
+        </button>
+
         <div style={{ padding: '0 12px 10px', fontSize: 13 }}>
           <div style={{ fontWeight: 600 }}>{user?.name}</div>
-          <div style={{ color: 'rgba(255,255,255,0.6)', textTransform: 'capitalize' }}>{user?.role}</div>
+          <div style={{ color: 'var(--sidebar-muted)', textTransform: 'capitalize' }}>{user?.role}</div>
         </div>
-        <button
-          onClick={handleLogout}
-          className="btn btn-sm"
-          style={{ width: '100%', background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }}
-        >
+        <button onClick={handleLogout} className="btn btn-sm sidebar-logout">
           <Icon path={ICONS.logout} />
           Log out
         </button>

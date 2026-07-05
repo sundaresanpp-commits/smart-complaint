@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { PASSWORD_REQUIREMENTS, isStrongPassword, isValidEmail, normalizeEmail } = require('../utils/validation');
 
 const generateToken = (user) => {
   return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, {
@@ -10,16 +11,34 @@ const generateToken = (user) => {
 // @route POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone } = req.body;
-    if (!name || !email || !password) {
+    const { name, email, password, phone, role, department } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const requestedRole = role || 'user';
+
+    if (!name?.trim() || !normalizedEmail || !password) {
       return res.status(400).json({ message: 'Name, email and password are required' });
     }
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) return res.status(400).json({ message: 'Email already registered' });
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ message: 'Please enter a valid email address' });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_REQUIREMENTS });
+    }
 
-    // Role is always 'user' on public registration.
-    // Staff/Admin accounts are created by an existing admin via /api/admin/users.
-    const user = await User.create({ name, email, password, phone });
+    const existing = await User.findOne({ email: normalizedEmail });
+    if (existing) return res.status(400).json({ message: 'Email already registered' });
+    if (!['user', 'staff'].includes(requestedRole)) {
+      return res.status(400).json({ message: 'Role must be student or staff' });
+    }
+
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password,
+      phone,
+      role: requestedRole,
+      department: requestedRole === 'staff' ? department || null : null,
+    });
     const token = generateToken(user);
     res.status(201).json({ token, user: user.toSafeObject() });
   } catch (err) {
@@ -31,9 +50,12 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+    const normalizedEmail = normalizeEmail(email);
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!normalizedEmail || !password) return res.status(400).json({ message: 'Email and password required' });
+    if (!isValidEmail(normalizedEmail)) return res.status(400).json({ message: 'Please enter a valid email address' });
+
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -63,3 +85,6 @@ exports.updateProfile = async (req, res) => {
     res.status(500).json({ message: 'Update failed', error: err.message });
   }
 };
+
+
+
