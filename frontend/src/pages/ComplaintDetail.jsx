@@ -30,12 +30,20 @@ export default function ComplaintDetail() {
 
   useEffect(() => {
     if (user.role === 'admin') {
-      api.get('/admin/users?role=staff').then((res) => setStaffList(res.data.users));
+      api.get('/admin/users?role=staff').then((res) => {
+        const staff = (res.data.users || [])
+          .map((member) => ({ ...member, staffId: member._id || member.id }))
+          .filter((member) => member.staffId);
+        setStaffList(staff);
+      });
     }
   }, [user.role]);
 
   const handleAssign = async () => {
-    if (!selectedStaff) return;
+    if (!selectedStaff) {
+      setMessage('Please select a staff member');
+      return;
+    }
     try {
       await api.put(`/complaints/${id}/assign`, { staffId: selectedStaff });
       setMessage('Complaint assigned');
@@ -201,7 +209,7 @@ export default function ComplaintDetail() {
                   <select value={selectedStaff} onChange={(e) => setSelectedStaff(e.target.value)}>
                     <option value="">Select staff member</option>
                     {staffList.map((s) => (
-                      <option key={s.id} value={s.id}>
+                      <option key={s.staffId} value={s.staffId}>
                         {s.name} {s.department ? `(${s.department})` : ''}
                       </option>
                     ))}
@@ -235,3 +243,6 @@ export default function ComplaintDetail() {
     </Layout>
   );
 }
+
+
+

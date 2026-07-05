@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const Location = require('../models/Location');
@@ -147,8 +148,13 @@ exports.assignComplaint = async (req, res) => {
     if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
 
     if (staffId) {
+      if (!mongoose.Types.ObjectId.isValid(staffId)) {
+        return res.status(400).json({ message: 'Please select a valid staff member' });
+      }
       const staff = await User.findById(staffId);
-      if (!staff || staff.role !== 'staff') return res.status(400).json({ message: 'Invalid staff member' });
+      if (!staff || staff.role !== 'staff' || staff.isActive === false) {
+        return res.status(400).json({ message: 'Invalid or inactive staff member' });
+      }
       complaint.assignedTo = staff._id;
       complaint.assignedDepartment = staff.department;
     } else if (department) {
@@ -254,3 +260,5 @@ exports.getMapData = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch map data', error: err.message });
   }
 };
+
+
