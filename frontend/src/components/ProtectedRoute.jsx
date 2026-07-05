@@ -12,7 +12,9 @@ export default function ProtectedRoute({ children, roles }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user || !['user', 'staff', 'admin'].includes(user.role)) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/dashboard" replace />;
   return children;
 }
+
+

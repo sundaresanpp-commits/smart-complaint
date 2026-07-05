@@ -25,9 +25,20 @@ const allowedOrigins = [
   .filter(Boolean)
   .map((origin) => origin.trim().replace(/\/$/, ''));
 
+const allowedOriginPatterns = [
+  /^https:\/\/[a-z0-9-]+\.netlify\.app$/i,
+  /^https:\/\/deploy-preview-\d+--[a-z0-9-]+\.netlify\.app$/i,
+];
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const normalizedOrigin = origin.replace(/\/$/, '');
+  return allowedOrigins.includes(normalizedOrigin) || allowedOriginPatterns.some((pattern) => pattern.test(normalizedOrigin));
+};
+
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ''))) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
 
@@ -71,5 +82,7 @@ app.listen(PORT, () => {
   runEscalationCheck();
   setInterval(runEscalationCheck, 60 * 60 * 1000);
 });
+
+
 
 

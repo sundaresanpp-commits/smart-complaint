@@ -2,6 +2,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import api from '../services/api';
 
 const AuthContext = createContext(null);
+const VALID_ROLES = ['user', 'staff', 'admin'];
+const hasValidRole = (candidate) => candidate && VALID_ROLES.includes(candidate.role);
+
+const clearStoredAuth = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -9,7 +16,12 @@ export function AuthProvider({ children }) {
     if (!stored) return null;
 
     try {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      if (!hasValidRole(parsed)) {
+        clearStoredAuth();
+        return null;
+      }
+      return parsed;
     } catch {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -40,6 +52,9 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password, expectedRole) => {
     const res = await api.post('/auth/login', { email, password });
+    if (!hasValidRole(res.data.user)) {
+      throw new Error('The server returned an invalid user session. Please try again.');
+    }
     if (expectedRole && res.data.user.role !== expectedRole) {
       throw new Error(`Please use the ${expectedRole === 'user' ? 'student' : expectedRole} login page for this account.`);
     }
@@ -71,3 +86,5 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+
