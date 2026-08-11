@@ -4,6 +4,8 @@ const { protect, authorize } = require('../middleware/auth');
 const ctrl = require('../controllers/locationController');
 
 router.get('/', ctrl.getLocations);
+router.get('/search', ctrl.searchLocations);
+router.get('/geocode', ctrl.geocodeLocation);
 router.post('/', protect, authorize('admin'), ctrl.createLocation);
 router.put('/:id', protect, authorize('admin'), ctrl.updateLocation);
 router.delete('/:id', protect, authorize('admin'), ctrl.deleteLocation);

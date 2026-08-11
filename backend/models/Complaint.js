@@ -29,7 +29,7 @@ const complaintSchema = new mongoose.Schema(
       ],
       default: 'Other',
     },
-    location: { type: mongoose.Schema.Types.ObjectId, ref: 'Location', required: true },
+    location: { type: mongoose.Schema.Types.ObjectId, ref: 'Location', default: null },
     locationName: { type: String, required: true, trim: true },
     coordinates: {
       lat: { type: Number, default: null },
@@ -79,3 +79,4 @@ const complaintSchema = new mongoose.Schema(
 complaintSchema.index({ title: 'text', description: 'text' });
 
 module.exports = mongoose.model('Complaint', complaintSchema);
+

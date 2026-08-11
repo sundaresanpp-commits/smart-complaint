@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
+const ensureDemoAdmin = require('./utils/ensureDemoAdmin');
 const runEscalationCheck = require('./utils/escalationJob');
 
 const authRoutes = require('./routes/authRoutes');
@@ -12,8 +13,6 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const locationRoutes = require('./routes/locationRoutes');
 
 const app = express();
-
-connectDB();
 
 const allowedOrigins = [
   process.env.CLIENT_URL,
@@ -75,14 +74,46 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ message: err.message || 'Server error' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  // Run escalation check on startup, then every hour
-  runEscalationCheck();
-  setInterval(runEscalationCheck, 60 * 60 * 1000);
+const startServer = (port) => {
+  const server = app.listen(port, '0.0.0.0', () => {
+    console.log(`Server running on port ${port}`);
+    // Run escalation check on startup, then every hour
+    runEscalationCheck();
+    setInterval(runEscalationCheck, 60 * 60 * 1000);
+  });
+
+  const shutdown = (signal) => {
+    console.log(`Received ${signal}; shutting down server...`);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 5000);
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      const fallbackPort = port + 1;
+      console.warn(`Port ${port} is busy. Trying ${fallbackPort} instead.`);
+      server.close(() => startServer(fallbackPort));
+      return;
+    }
+
+    console.error('Server start error:', error);
+    process.exit(1);
+  });
+};
+
+const PORT = Number(process.env.PORT) || 5000;
+
+async function bootstrap() {
+  await connectDB();
+  await ensureDemoAdmin();
+  startServer(PORT);
+}
+
+bootstrap().catch((err) => {
+  console.error('Server bootstrap error:', err.message);
+  process.exit(1);
 });
-
-
-
 

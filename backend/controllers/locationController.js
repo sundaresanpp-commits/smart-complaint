@@ -1,4 +1,6 @@
 const Location = require('../models/Location');
+const { searchLocations } = require('../utils/locationResolver');
+const { geocodeAddress } = require('../utils/geocoding');
 
 exports.getLocations = async (req, res) => {
   try {
@@ -6,6 +8,34 @@ exports.getLocations = async (req, res) => {
     res.json({ locations });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch locations', error: err.message });
+  }
+};
+
+exports.searchLocations = async (req, res) => {
+  try {
+    const { q = '', limit = 10 } = req.query;
+    const locations = await searchLocations(q, Number(limit) || 10);
+    res.json({ locations });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to search locations', error: err.message });
+  }
+};
+
+exports.geocodeLocation = async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || !String(q).trim()) {
+      return res.status(400).json({ message: 'Location query is required' });
+    }
+
+    const result = await geocodeAddress(q);
+    if (!result) {
+      return res.status(404).json({ message: 'Location could not be found within the campus area' });
+    }
+
+    res.json({ result });
+  } catch (err) {
+    res.status(500).json({ message: 'Geocoding failed', error: err.message });
   }
 };
 

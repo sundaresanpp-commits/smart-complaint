@@ -1,34 +1,72 @@
 const mongoose = require('mongoose');
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
-const Location = require('../models/Location');
 const { analyzeComplaint, findDuplicate } = require('../utils/aiService');
 const { createNotification, sendEmail } = require('../utils/notify');
+const { resolveComplaintCoordinates } = require('../utils/coordinates');
+const { resolveLocation, findClosestLocation } = require('../utils/locationResolver');
 
 // @route POST /api/complaints
 // @desc  Submit a new complaint. Runs AI categorization/priority/sentiment/summary,
 //        then checks for duplicates among recent open complaints in the same category.
 exports.createComplaint = async (req, res) => {
   try {
-    const { title, description, locationId, location, isAnonymous, category: manualCategory } = req.body;
-    const selectedLocationId = locationId || location;
-    if (!title || !description || !selectedLocationId) {
-      return res.status(400).json({ message: 'Title, description, and location are required' });
-    }
-
-    const ai = await analyzeComplaint({ title, description });
-    const selectedLocation = await Location.findById(selectedLocationId);
-    if (!selectedLocation) {
-      return res.status(400).json({ message: 'Selected location was not found' });
-    }
-
-    const complaint = new Complaint({
+    const {
       title,
       description,
+      locationId,
+      location,
+      locationName,
+      isAnonymous,
+      category: manualCategory,
+      lat: suppliedLat,
+      lng: suppliedLng,
+    } = req.body;
+    const selectedLocationId = locationId || location;
+    const trimmedTitle = String(title || '').trim();
+    const trimmedDescription = String(description || '').trim();
+    const parsedLat = Number(suppliedLat);
+    const parsedLng = Number(suppliedLng);
+    const hasPinCoordinates = Number.isFinite(parsedLat) && Number.isFinite(parsedLng);
+    if (!trimmedTitle || !trimmedDescription) {
+      return res.status(400).json({ message: 'Title and description are required' });
+    }
+
+    const ai = await analyzeComplaint({ title: trimmedTitle, description: trimmedDescription });
+    let resolved = null;
+
+    if (hasPinCoordinates) {
+      const fallbackLocation = await findClosestLocation(parsedLat, parsedLng);
+      resolved = {
+        location: fallbackLocation,
+        coordinates: { lat: parsedLat, lng: parsedLng },
+        source: 'pin',
+      };
+    } else {
+      resolved = await resolveLocation({
+        locationId: selectedLocationId,
+        locationName:
+          locationName ||
+          (typeof location === 'string' && !mongoose.Types.ObjectId.isValid(location) ? location : ''),
+        allowGeocode: true,
+      });
+    }
+    if (!resolved) {
+      return res.status(400).json({
+        message:
+          'The complaint location could not be resolved. Please place the pin on the campus map before submitting.',
+      });
+    }
+
+    const { location: selectedLocation, coordinates } = resolved;
+
+    const complaint = new Complaint({
+      title: trimmedTitle,
+      description: trimmedDescription,
       category: manualCategory || ai.category,
-      location: selectedLocation._id,
-      locationName: selectedLocation.name,
-      coordinates: { lat: selectedLocation.lat, lng: selectedLocation.lng },
+      location: selectedLocation?._id || null,
+      locationName: locationName || selectedLocation?.name || 'Custom pinpoint',
+      coordinates: { lat: coordinates.lat, lng: coordinates.lng },
       imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
       priority: ai.priority,
       sentiment: ai.sentiment,
@@ -47,7 +85,7 @@ exports.createComplaint = async (req, res) => {
       .limit(15)
       .select('title description');
 
-    const dup = await findDuplicate({ title, description }, recentCandidates);
+    const dup = await findDuplicate({ title: trimmedTitle, description: trimmedDescription }, recentCandidates);
     if (dup) {
       complaint.isDuplicate = true;
       complaint.duplicateOf = dup.complaintId;
@@ -249,16 +287,49 @@ exports.submitFeedback = async (req, res) => {
 // @route GET /api/complaints/map/locations  (public within app - complaint pins)
 exports.getMapData = async (req, res) => {
   try {
-    const complaints = await Complaint.find({
-      'coordinates.lat': { $ne: null },
-      'coordinates.lng': { $ne: null },
-    })
-      .populate('location', 'name category')
-      .select('title category priority status location locationName coordinates createdAt');
-    res.json({ complaints });
+    const complaints = await Complaint.find({})
+      .populate('location', 'name category lat lng')
+      .select('title category priority status location locationName coordinates createdAt')
+      .sort({ createdAt: -1 });
+
+    const normalized = [];
+    for (const complaint of complaints) {
+      const coords = resolveComplaintCoordinates(complaint);
+      if (!coords) continue;
+
+      const hasStoredCoords =
+        complaint.coordinates?.lat != null && complaint.coordinates?.lng != null;
+      if (!hasStoredCoords) {
+        Complaint.updateOne(
+          { _id: complaint._id },
+          { coordinates: { lat: coords.lat, lng: coords.lng } }
+        ).catch(() => {});
+      } else {
+        const storedLat = complaint.coordinates?.lat;
+        const storedLng = complaint.coordinates?.lng;
+        if (storedLat !== coords.lat || storedLng !== coords.lng) {
+          Complaint.updateOne(
+            { _id: complaint._id },
+            { coordinates: { lat: coords.lat, lng: coords.lng } }
+          ).catch(() => {});
+        }
+      }
+
+      normalized.push({
+        _id: complaint._id,
+        title: complaint.title,
+        category: complaint.category,
+        priority: complaint.priority,
+        status: complaint.status,
+        locationName: complaint.locationName || complaint.location?.name,
+        coordinates: { lat: coords.lat, lng: coords.lng },
+        createdAt: complaint.createdAt,
+      });
+    }
+
+    res.json({ complaints: normalized });
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch map data', error: err.message });
   }
 };
-
 

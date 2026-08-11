@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import LocationPicker from '../components/LocationPicker';
 import api from '../services/api';
 
 const CATEGORIES = [
@@ -21,11 +22,13 @@ export default function SubmitComplaint() {
     title: '',
     description: '',
     category: '',
-    locationId: '',
     isAnonymous: false,
   });
-  const [locations, setLocations] = useState([]);
-  const [locationSearch, setLocationSearch] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState({
+    name: '',
+    lat: 9.8819,
+    lng: 78.0827,
+  });
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState('');
@@ -36,18 +39,9 @@ export default function SubmitComplaint() {
     setForm({ ...form, [name]: type === 'checkbox' ? checked : value });
   };
 
-  const handleLocationChange = (e) => {
-    const value = e.target.value;
-    const selected = locations.find((location) => location.name.toLowerCase() === value.trim().toLowerCase());
-    setLocationSearch(value);
-    setForm({ ...form, locationId: selected?._id || '' });
+  const handleLocationChange = (location) => {
+    setSelectedLocation(location);
   };
-
-  useEffect(() => {
-    api.get('/locations').then((res) => setLocations(res.data.locations));
-  }, []);
-
-  const selectedLocation = locations.find((location) => location._id === form.locationId);
 
   const handleImage = (e) => {
     const file = e.target.files[0];
@@ -60,14 +54,19 @@ export default function SubmitComplaint() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!form.locationId) {
-      setError('Select a valid campus location from the list');
+
+    if (!Number.isFinite(selectedLocation.lat) || !Number.isFinite(selectedLocation.lng)) {
+      setError('Place the pin on the map before submitting the complaint.');
       return;
     }
+
     setLoading(true);
     try {
       const data = new FormData();
       Object.entries(form).forEach(([key, val]) => data.append(key, val));
+      data.append('locationName', selectedLocation.name || 'Custom pinpoint');
+      data.append('lat', String(selectedLocation.lat));
+      data.append('lng', String(selectedLocation.lng));
       if (image) data.append('image', image);
 
       const res = await api.post('/complaints', data, {
@@ -127,23 +126,7 @@ export default function SubmitComplaint() {
             </div>
             <div className="field">
               <label>Location</label>
-              <input
-                value={locationSearch}
-                onChange={handleLocationChange}
-                list="campus-location-options"
-                placeholder="Search and select a campus location"
-                required
-              />
-              <datalist id="campus-location-options">
-                {locations.map((location) => (
-                  <option key={location._id} value={location.name} />
-                ))}
-              </datalist>
-              {selectedLocation && (
-                <span className="text-sm text-slate">
-                  This complaint will be pinned at {selectedLocation.name} on the campus map.
-                </span>
-              )}
+              <LocationPicker value={selectedLocation} onChange={handleLocationChange} error={error} />
             </div>
           </div>
 
@@ -183,3 +166,4 @@ export default function SubmitComplaint() {
     </Layout>
   );
 }
+

@@ -5,14 +5,21 @@ const connectDB = async () => {
     const mongoUri = process.env.MONGO_URI;
 
     if (!mongoUri) {
-      throw new Error('MONGO_URI environment variable is missing');
+      console.warn('MONGO_URI is not set; skipping database connection.');
+      return;
     }
 
-    const conn = await mongoose.connect(mongoUri);
+    const conn = await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000,
+    });
+
     console.log(`MongoDB connected: ${conn.connection.host}`);
   } catch (err) {
     console.error(`MongoDB connection error: ${err.message}`);
-    process.exit(1);
+
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
   }
 };
 

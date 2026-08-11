@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const apiBaseUrl = import.meta.env.VITE_API_URL || 'https://smart-complaint-yd0p.onrender.com';
+const defaultApiBaseUrl = import.meta.env.DEV
+  ? 'http://localhost:5000'
+  : 'https://smart-complaint-yd0p.onrender.com';
+const apiBaseUrl = import.meta.env.VITE_API_URL || defaultApiBaseUrl;
 const normalizedBaseUrl = apiBaseUrl.replace(/\/$/, '').endsWith('/api')
   ? apiBaseUrl.replace(/\/$/, '')
   : apiBaseUrl.replace(/\/$/, '') + '/api';
