@@ -3,8 +3,20 @@ const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const { analyzeComplaint, findDuplicate } = require('../utils/aiService');
 const { createNotification, sendEmail } = require('../utils/notify');
-const { resolveComplaintCoordinates } = require('../utils/coordinates');
+const { resolveComplaintCoordinates, haversineMeters } = require('../utils/coordinates');
 const { resolveLocation, findClosestLocation } = require('../utils/locationResolver');
+
+const configuredResolvedVisibilityDays = Number(process.env.RESOLVED_COMPLAINT_VISIBILITY_DAYS);
+const resolvedVisibilityDays =
+  Number.isFinite(configuredResolvedVisibilityDays) && configuredResolvedVisibilityDays >= 0
+    ? configuredResolvedVisibilityDays
+    : 15;
+
+const configuredDuplicateDistanceMeters = Number(process.env.DUPLICATE_DISTANCE_METERS);
+const duplicateDistanceMeters =
+  Number.isFinite(configuredDuplicateDistanceMeters) && configuredDuplicateDistanceMeters > 0
+    ? configuredDuplicateDistanceMeters
+    : 100;
 
 // @route POST /api/complaints
 // @desc  Submit a new complaint. Runs AI categorization/priority/sentiment/summary,
@@ -60,7 +72,7 @@ exports.createComplaint = async (req, res) => {
 
     const { location: selectedLocation, coordinates } = resolved;
 
-    const complaint = new Complaint({
+    const complaintData = {
       title: trimmedTitle,
       description: trimmedDescription,
       category: manualCategory || ai.category,
@@ -71,38 +83,61 @@ exports.createComplaint = async (req, res) => {
       priority: ai.priority,
       sentiment: ai.sentiment,
       aiSummary: ai.summary,
-      isAnonymous: !!isAnonymous,
+      isAnonymous: isAnonymous === true || isAnonymous === 'true',
       submittedBy: req.user._id,
       statusHistory: [{ status: 'Submitted', changedBy: req.user._id, note: 'Complaint submitted' }],
-    });
+    };
 
     // Duplicate check against recent (last 30 days) open complaints in same category
     const recentCandidates = await Complaint.find({
-      category: complaint.category,
+      category: complaintData.category,
       status: { $nin: ['Resolved', 'Closed'] },
+      isDuplicate: { $ne: true },
       createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
     })
       .limit(15)
-      .select('title description');
+      .select('title description coordinates');
 
-    const dup = await findDuplicate({ title: trimmedTitle, description: trimmedDescription }, recentCandidates);
+    // Text similarity alone is not enough: the reports must also refer to
+    // the same nearby physical location. Records with missing coordinates are
+    // deliberately not considered duplicates, avoiding accidental merges.
+    const nearbyCandidates = recentCandidates.filter((candidate) => {
+      const candidateCoordinates = resolveComplaintCoordinates(candidate);
+      const distance = candidateCoordinates
+        ? haversineMeters(coordinates.lat, coordinates.lng, candidateCoordinates.lat, candidateCoordinates.lng)
+        : null;
+      return distance !== null && distance <= duplicateDistanceMeters;
+    });
+    const dup = await findDuplicate({ title: trimmedTitle, description: trimmedDescription }, nearbyCandidates);
     if (dup) {
-      complaint.isDuplicate = true;
-      complaint.duplicateOf = dup.complaintId;
+      const complaint = await Complaint.findOneAndUpdate(
+        { _id: dup.complaintId, isDuplicate: { $ne: true } },
+        {
+          $inc: { duplicateCount: 1 },
+          $push: {
+            duplicateHistory: {
+              submittedAt: new Date(),
+              submittedBy: req.user._id,
+              isAnonymous: isAnonymous === true || isAnonymous === 'true',
+              title: trimmedTitle,
+            },
+          },
+        },
+        { new: true }
+      );
+
+      if (complaint) {
+        await createNotification({
+          userId: req.user._id,
+          message: 'Your complaint matches an existing report. Its duplicate count was updated.',
+          type: 'general',
+        });
+        return res.status(200).json({ complaint, isDuplicate: true });
+      }
     }
 
-    await complaint.save();
-
-    if (dup) {
-      await createNotification({
-        userId: req.user._id,
-        complaintId: complaint._id,
-        message: `Your complaint appears similar to an existing report and has been linked to it for faster resolution.`,
-        type: 'general',
-      });
-    }
-
-    res.status(201).json({ complaint });
+    const complaint = await Complaint.create(complaintData);
+    res.status(201).json({ complaint, isDuplicate: false });
   } catch (err) {
     res.status(500).json({ message: 'Failed to create complaint', error: err.message });
   }
@@ -111,7 +146,7 @@ exports.createComplaint = async (req, res) => {
 // @route GET /api/complaints/mine
 exports.getMyComplaints = async (req, res) => {
   try {
-    const complaints = await Complaint.find({ submittedBy: req.user._id })
+    const complaints = await Complaint.find({ submittedBy: req.user._id, isDuplicate: { $ne: true } })
       .populate('location', 'name category lat lng')
       .sort({ createdAt: -1 });
     res.json({ complaints });
@@ -147,7 +182,11 @@ exports.getComplaintById = async (req, res) => {
 exports.getAllComplaints = async (req, res) => {
   try {
     const { status, category, priority, search, assignedToMe, page = 1, limit = 20 } = req.query;
-    const filter = {};
+    const resolvedVisibilityCutoff = new Date(Date.now() - resolvedVisibilityDays * 24 * 60 * 60 * 1000);
+    const filter = {
+      isDuplicate: { $ne: true },
+      $nor: [{ status: 'Resolved', resolvedAt: { $lte: resolvedVisibilityCutoff } }],
+    };
 
     if (status) filter.status = status;
     if (category) filter.category = category;
@@ -287,7 +326,10 @@ exports.submitFeedback = async (req, res) => {
 // @route GET /api/complaints/map/locations  (public within app - complaint pins)
 exports.getMapData = async (req, res) => {
   try {
-    const complaints = await Complaint.find({})
+    const complaints = await Complaint.find({
+      isDuplicate: { $ne: true },
+      status: { $nin: ['Resolved', 'Closed'] },
+    })
       .populate('location', 'name category lat lng')
       .select('title category priority status location locationName coordinates createdAt')
       .sort({ createdAt: -1 });

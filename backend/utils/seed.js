@@ -92,7 +92,7 @@ const demoComplaints = [
 async function seed() {
   await connectDB();
 
-  await User.deleteMany({ email: { $in: ['admin@demo.com', 'staff@demo.com', 'student@demo.com'] } });
+  await User.deleteMany({ email: { $in: ['admin@tce.edu', 'staff@tce.edu', 'student@student.tce.edu'] } });
   await Complaint.deleteMany({});
   await Location.deleteMany({});
   await Location.insertMany(demoLocations);
@@ -101,14 +101,14 @@ async function seed() {
 
   const admin = await User.create({
     name: 'Admin User',
-    email: 'admin@demo.com',
+    email: 'admin@tce.edu',
     password: 'Password@123',
     role: 'admin',
   });
 
   const staff = await User.create({
     name: 'Staff Member',
-    email: 'staff@demo.com',
+    email: 'staff@tce.edu',
     password: 'Password@123',
     role: 'staff',
     department: 'Infrastructure',
@@ -116,7 +116,7 @@ async function seed() {
 
   const student = await User.create({
     name: 'Demo Student',
-    email: 'student@demo.com',
+    email: 'student@student.tce.edu',
     password: 'Password@123',
     role: 'user',
   });
@@ -135,11 +135,12 @@ async function seed() {
 
   console.log('Seed complete!');
   console.log('Login with:');
-  console.log('  Admin:   admin@demo.com / Password@123');
-  console.log('  Staff:   staff@demo.com / Password@123');
-  console.log('  Student: student@demo.com / Password@123');
+  console.log('  Admin:   admin@tce.edu / Password@123');
+  console.log('  Staff:   staff@tce.edu / Password@123');
+  console.log('  Student: student@student.tce.edu / Password@123');
   mongoose.connection.close();
 }
 
 seed();
+
 

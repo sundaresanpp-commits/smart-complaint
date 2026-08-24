@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { EMAIL_REGEX, isValidEmail } from '../utils/validation';
+import { EMAIL_REGEX, isAllowedEmailForRole, domainMessage } from '../utils/validation';
 import { ROLE_CHOICES, getAuthRole } from '../utils/authRoles';
 
 function EyeIcon({ visible }) {
@@ -59,7 +59,7 @@ function RolePicker() {
 export default function Login() {
   const { role } = useParams();
   const authRole = getAuthRole(role);
-  const { login } = useAuth();
+  const { beginLogin } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -72,8 +72,8 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isValidEmail(email)) {
-      setError('Please enter a valid email address, for example sundar@gmail.com');
+    if (!isAllowedEmailForRole(email, authRole.role)) {
+      setError(domainMessage(authRole.role));
       return;
     }
     if (!password) {
@@ -84,8 +84,8 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await login(email.trim().toLowerCase(), password, authRole.role);
-      navigate('/dashboard');
+      const challenge = await beginLogin(email.trim().toLowerCase(), password, authRole.role);
+      navigate('/verify-otp', { state: { email: challenge.email, challenge } });
     } catch (err) {
       const message = err.response?.data?.message || (!err.response ? 'Unable to reach the backend. Check the API URL or allowed frontend origin.' : err.message);
       setError(message || 'Invalid email or password');
@@ -119,7 +119,7 @@ export default function Login() {
                 onChange={(e) => setEmail(e.target.value)}
                 pattern={EMAIL_REGEX.source}
                 autoComplete="email"
-                title="Enter a complete email address, for example sundar@gmail.com"
+                title={authRole.role === 'user' ? 'Use your @student.tce.edu email address' : 'Use your @tce.edu email address'}
                 required
               />
             </div>
@@ -163,5 +163,8 @@ export default function Login() {
     </main>
   );
 }
+
+
+
 
 

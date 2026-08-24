@@ -5,6 +5,7 @@ const path = require('path');
 const connectDB = require('./config/db');
 const ensureDemoAdmin = require('./utils/ensureDemoAdmin');
 const runEscalationCheck = require('./utils/escalationJob');
+const runResolvedComplaintCleanup = require('./utils/resolvedComplaintCleanup');
 
 const authRoutes = require('./routes/authRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
@@ -77,9 +78,11 @@ app.use((err, req, res, next) => {
 const startServer = (port) => {
   const server = app.listen(port, '0.0.0.0', () => {
     console.log(`Server running on port ${port}`);
-    // Run escalation check on startup, then every hour
+    // Run scheduled complaint maintenance on startup, then every hour.
     runEscalationCheck();
+    runResolvedComplaintCleanup();
     setInterval(runEscalationCheck, 60 * 60 * 1000);
+    setInterval(runResolvedComplaintCleanup, 60 * 60 * 1000);
   });
 
   const shutdown = (signal) => {

@@ -4,7 +4,7 @@ const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 const { summarizeComplaints } = require('../utils/aiService');
 const { createNotification } = require('../utils/notify');
-const { PASSWORD_REQUIREMENTS, isStrongPassword, isValidEmail, normalizeEmail } = require('../utils/validation');
+const { PASSWORD_REQUIREMENTS, isStrongPassword, isValidEmail, normalizeEmail, isAllowedEmailForRole, emailDomainMessage } = require('../utils/validation');
 
 // @route GET /api/admin/analytics
 exports.getAnalytics = async (req, res) => {
@@ -110,8 +110,8 @@ exports.createStaffUser = async (req, res) => {
     if (!name?.trim() || !normalizedEmail || !password) {
       return res.status(400).json({ message: 'Name, email and password are required' });
     }
-    if (!isValidEmail(normalizedEmail)) {
-      return res.status(400).json({ message: 'Please enter a valid email address' });
+    if (!isAllowedEmailForRole(normalizedEmail, role)) {
+      return res.status(400).json({ message: emailDomainMessage(role) });
     }
     if (!isStrongPassword(password)) {
       return res.status(400).json({ message: PASSWORD_REQUIREMENTS });
@@ -254,4 +254,5 @@ exports.exportExcel = async (req, res) => {
     res.status(500).json({ message: 'Failed to export Excel', error: err.message });
   }
 };
+
 

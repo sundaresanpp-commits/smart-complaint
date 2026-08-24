@@ -72,7 +72,11 @@ export default function SubmitComplaint() {
       const res = await api.post('/complaints', data, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      navigate(`/complaints/${res.data.complaint._id}`);
+      if (res.data.isDuplicate) {
+        navigate('/history');
+      } else {
+        navigate(`/complaints/${res.data.complaint._id}`);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit complaint');
     } finally {

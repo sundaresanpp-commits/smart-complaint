@@ -149,6 +149,17 @@ export default function ComplaintDetail() {
             {complaint.assignedTo && <>Assigned to: {complaint.assignedTo.name} <br /></>}
           </div>
 
+          {complaint.duplicateCount > 0 && (
+            <div style={{ marginTop: 20, padding: 12, background: 'var(--amber-soft)', borderRadius: 6 }}>
+              <strong>Duplicate Count: {complaint.duplicateCount}</strong>
+              <ul className="text-sm text-slate" style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+                {(complaint.duplicateHistory || []).map((duplicate, index) => (
+                  <li key={`${duplicate.submittedAt}-${index}`}>{new Date(duplicate.submittedAt).toLocaleString()}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* Status timeline */}
           <h3 style={{ marginTop: 24, marginBottom: 12, fontSize: 15 }}>Status Timeline</h3>
           <div className="flex-col gap-12">
@@ -243,6 +254,4 @@ export default function ComplaintDetail() {
     </Layout>
   );
 }
-
-
 

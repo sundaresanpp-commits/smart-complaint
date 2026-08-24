@@ -4,87 +4,35 @@ import api from '../services/api';
 const AuthContext = createContext(null);
 const VALID_ROLES = ['user', 'staff', 'admin'];
 const hasValidRole = (candidate) => candidate && VALID_ROLES.includes(candidate.role);
-
-const clearStoredAuth = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-};
+const clearStoredAuth = () => { localStorage.removeItem('token'); localStorage.removeItem('user'); };
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem('user');
-    if (!stored) return null;
-
-    try {
-      const parsed = JSON.parse(stored);
-      if (!hasValidRole(parsed)) {
-        clearStoredAuth();
-        return null;
-      }
-      return parsed;
-    } catch {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      return null;
-    }
+    try { const parsed = JSON.parse(localStorage.getItem('user')); return hasValidRole(parsed) ? parsed : null; } catch { clearStoredAuth(); return null; }
   });
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    api
-      .get('/auth/me')
-      .then((res) => {
-        setUser(res.data.user);
-        localStorage.setItem('user', JSON.stringify(res.data.user));
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
-      })
-      .finally(() => setLoading(false));
+    if (!token) return setLoading(false);
+    api.get('/auth/me').then((res) => { setUser(res.data.user); localStorage.setItem('user', JSON.stringify(res.data.user)); }).catch(() => { clearStoredAuth(); setUser(null); }).finally(() => setLoading(false));
   }, []);
-
-  const login = async (email, password, expectedRole) => {
+  const beginLogin = async (email, password, expectedRole) => {
     const res = await api.post('/auth/login', { email, password });
-    if (!hasValidRole(res.data.user)) {
-      throw new Error('The server returned an invalid user session. Please try again.');
-    }
-    if (expectedRole && res.data.user.role !== expectedRole) {
-      throw new Error(`Please use the ${expectedRole === 'user' ? 'student' : expectedRole} login page for this account.`);
-    }
-    localStorage.setItem('token', res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
-    return res.data.user;
+    if (expectedRole && res.data.challenge.role !== expectedRole) throw new Error(`Please use the ${expectedRole === 'user' ? 'student' : expectedRole} login page for this account.`);
+    sessionStorage.setItem('otpEmail', res.data.challenge.email);
+    return res.data.challenge;
   };
-
   const register = async (data) => {
     const res = await api.post('/auth/register', data);
-    localStorage.setItem('token', res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    setUser(res.data.user);
+    sessionStorage.setItem('otpEmail', res.data.challenge.email);
+    return res.data.challenge;
+  };
+  const verifyOtp = async (email, otp) => {
+    const res = await api.post('/auth/otp/verify', { email, otp });
+    localStorage.setItem('token', res.data.token); localStorage.setItem('user', JSON.stringify(res.data.user)); sessionStorage.removeItem('otpEmail'); setUser(res.data.user);
     return res.data.user;
   };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, setUser, login, register, logout, loading }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const logout = () => { clearStoredAuth(); sessionStorage.removeItem('otpEmail'); setUser(null); };
+  return <AuthContext.Provider value={{ user, setUser, beginLogin, register, verifyOtp, logout, loading }}>{children}</AuthContext.Provider>;
 }
-
 export const useAuth = () => useContext(AuthContext);
-
-

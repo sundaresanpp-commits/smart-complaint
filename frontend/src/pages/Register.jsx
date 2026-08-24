@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { EMAIL_REGEX, PASSWORD_REQUIREMENTS, isStrongPassword, isValidEmail } from '../utils/validation';
+import { EMAIL_REGEX, PASSWORD_REQUIREMENTS, isStrongPassword, isAllowedEmailForRole, domainMessage } from '../utils/validation';
 import { REGISTER_ROLE_CHOICES, getAuthRole } from '../utils/authRoles';
 
 function EyeIcon({ visible }) {
@@ -95,7 +95,7 @@ export default function Register() {
 
   const validateForm = () => {
     if (!form.name.trim()) return 'Full name is required';
-    if (!isValidEmail(form.email)) return 'Please enter a valid email address, for example sundar@gmail.com';
+    if (!isAllowedEmailForRole(form.email, authRole.role)) return domainMessage(authRole.role);
     if (authRole.role === 'staff' && !form.department.trim()) return 'Department is required for staff accounts';
     if (!isStrongPassword(form.password)) return PASSWORD_REQUIREMENTS;
     if (form.password !== form.confirmPassword) return 'Passwords do not match';
@@ -115,7 +115,7 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      await register({
+      const challenge = await register({
         ...registrationData,
         name: form.name.trim(),
         email: form.email.trim().toLowerCase(),
@@ -123,7 +123,7 @@ export default function Register() {
         department: authRole.role === 'staff' ? form.department.trim() : undefined,
         role: authRole.role,
       });
-      navigate('/dashboard');
+      navigate('/verify-otp', { state: { email: challenge.email, challenge } });
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -161,7 +161,7 @@ export default function Register() {
                 onChange={handleChange}
                 pattern={EMAIL_REGEX.source}
                 autoComplete="email"
-                title="Enter a complete email address, for example sundar@gmail.com"
+                title={authRole.role === 'user' ? 'Use your @student.tce.edu email address' : 'Use your @tce.edu email address'}
                 required
               />
             </div>
@@ -239,4 +239,7 @@ export default function Register() {
     </main>
   );
 }
+
+
+
 

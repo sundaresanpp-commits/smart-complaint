@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyOtp from './pages/VerifyOtp';
 import Dashboard from './pages/Dashboard';
 import SubmitComplaint from './pages/SubmitComplaint';
 import MyComplaints from './pages/MyComplaints';
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/register/:role" element={<Register />} />
       <Route path="/:role/register" element={<Register />} />
+      <Route path="/verify-otp" element={<VerifyOtp />} />
 
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
@@ -88,3 +90,5 @@ export default function App() {
     </Routes>
   );
 }
+
+

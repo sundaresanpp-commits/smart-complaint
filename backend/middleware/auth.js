@@ -10,9 +10,10 @@ const protect = async (req, res, next) => {
     }
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded.otpVerified) return res.status(401).json({ message: 'Email verification is required' });
     const user = await User.findById(decoded.id).select('-password');
-    if (!user || !user.isActive) {
-      return res.status(401).json({ message: 'User not found or deactivated' });
+    if (!user || !user.isActive || !user.isEmailVerified) {
+      return res.status(401).json({ message: 'User is not authorized or email verification is required' });
     }
     req.user = user;
     next();
@@ -32,3 +33,5 @@ const authorize = (...roles) => {
 };
 
 module.exports = { protect, authorize };
+
+

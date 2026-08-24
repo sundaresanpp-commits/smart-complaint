@@ -21,6 +21,14 @@ export default function TicketCard({ complaint = {} }) {
           <span className="text-sm text-slate">{date}</span>
         </div>
         <div className="ticket-title">{complaint.title || 'Untitled complaint'}</div>
+        {!complaint.isAnonymous && complaint.submittedBy?.name && (
+          <div className="text-sm text-slate" style={{ marginBottom: 8 }}>
+            Submitted by: {complaint.submittedBy.name}
+          </div>
+        )}
+        {complaint.isAnonymous && (
+          <div className="text-sm text-slate" style={{ marginBottom: 8 }}>Submitted by: Anonymous</div>
+        )}
         <div className="ticket-meta">
           <StatusPill status={complaint.status || 'Submitted'} />
           <PriorityBadge priority={complaint.priority || 'Low'} />
@@ -51,6 +59,11 @@ export default function TicketCard({ complaint = {} }) {
             </span>
           )}
           {complaint.isEscalated && <Stamp type="escalated" />}
+          {complaint.duplicateCount > 0 && (
+            <span className="pill" style={{ background: 'var(--amber-soft)', color: 'var(--ink-soft)' }}>
+              Duplicate Count: {complaint.duplicateCount}
+            </span>
+          )}
           {complaint.isDuplicate && <Stamp type="duplicate" />}
           {['Resolved', 'Closed'].includes(complaint.status) && <Stamp type="resolved" />}
         </div>
@@ -58,3 +71,4 @@ export default function TicketCard({ complaint = {} }) {
     </Link>
   );
 }
+

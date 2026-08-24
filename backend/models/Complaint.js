@@ -10,6 +10,16 @@ const statusHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const duplicateHistorySchema = new mongoose.Schema(
+  {
+    submittedAt: { type: Date, required: true, default: Date.now },
+    submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    isAnonymous: { type: Boolean, default: false },
+    title: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const complaintSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -63,6 +73,8 @@ const complaintSchema = new mongoose.Schema(
 
     isDuplicate: { type: Boolean, default: false },
     duplicateOf: { type: mongoose.Schema.Types.ObjectId, ref: 'Complaint', default: null },
+    duplicateCount: { type: Number, default: 0, min: 0 },
+    duplicateHistory: { type: [duplicateHistorySchema], default: [] },
 
     isEscalated: { type: Boolean, default: false },
     escalatedAt: { type: Date, default: null },

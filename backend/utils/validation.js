@@ -16,11 +16,17 @@ function normalizeEmail(email) {
   return typeof email === 'string' ? email.trim().toLowerCase() : '';
 }
 
-module.exports = {
-  EMAIL_REGEX,
-  PASSWORD_REGEX,
-  PASSWORD_REQUIREMENTS,
-  isValidEmail,
-  isStrongPassword,
-  normalizeEmail,
-};
+function isAllowedEmailForRole(email, role) {
+  if (!isValidEmail(email)) return false;
+  const normalizedEmail = normalizeEmail(email);
+  if (role === 'user') return normalizedEmail.endsWith('@student.tce.edu');
+  return (role === 'staff' || role === 'admin') && normalizedEmail.endsWith('@tce.edu');
+}
+
+function emailDomainMessage(role) {
+  return role === 'user'
+    ? 'Student accounts must use an @student.tce.edu email address'
+    : 'Staff and admin accounts must use an @tce.edu email address';
+}
+
+module.exports = { EMAIL_REGEX, PASSWORD_REGEX, PASSWORD_REQUIREMENTS, isValidEmail, isStrongPassword, normalizeEmail, isAllowedEmailForRole, emailDomainMessage };

@@ -3,7 +3,7 @@ const User = require('../models/User');
 
 const DEMO_ADMIN = {
   name: 'Demo Admin',
-  email: 'admin@demo.com',
+  email: 'admin@tce.edu',
   password: 'Password@123',
   role: 'admin',
 };
@@ -17,7 +17,7 @@ async function ensureDemoAdmin() {
   const existing = await User.findOne({ email: DEMO_ADMIN.email });
   if (!existing) {
     await User.create(DEMO_ADMIN);
-    console.log('Demo admin account created: admin@demo.com / Password@123');
+    console.log('Demo admin account created: admin@tce.edu / Password@123');
     return;
   }
 
@@ -48,8 +48,9 @@ async function ensureDemoAdmin() {
 
   if (changed) {
     await existing.save();
-    console.log('Demo admin account refreshed: admin@demo.com / Password@123');
+    console.log('Demo admin account refreshed: admin@tce.edu / Password@123');
   }
 }
 
 module.exports = ensureDemoAdmin;
+
